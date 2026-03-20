@@ -29,5 +29,9 @@ router.post(
     );
   },
 );
-
+if (!req.files || !req.files.passport || !req.files.license) {
+  return res.status(400).json({
+    error: "Passport and license images are required",
+  });
+}
 module.exports = router;
