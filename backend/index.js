@@ -26,7 +26,11 @@ app.get("/test-db", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
+// Authentication routing
 const authRoutes = require("./routes/auth");
-
 app.use("/api/auth", authRoutes);
+// Driver routing
+const driverRoutes = require("./routes/driver");
+app.use("/api/driver", driverRoutes);
+// Upload routing
+app.use("/uploads", express.static("uploads"));
