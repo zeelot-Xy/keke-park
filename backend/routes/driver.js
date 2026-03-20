@@ -1,9 +1,3 @@
-const express = require("express");
-const upload = require("../middleware/upload");
-const db = require("../db");
-
-const router = express.Router();
-
 router.post(
   "/create",
   upload.fields([
@@ -13,8 +7,15 @@ router.post(
   (req, res) => {
     const { user_id, plate_number, park_id } = req.body;
 
-    const passport = req.files["passport"][0].filename;
-    const license = req.files["license"][0].filename;
+    // Validate files
+    if (!req.files || !req.files.passport || !req.files.license) {
+      return res.status(400).json({
+        error: "Passport and license images are required",
+      });
+    }
+
+    const passport = req.files.passport[0].filename;
+    const license = req.files.license[0].filename;
 
     db.query(
       "INSERT INTO drivers (user_id, plate_number, park_id, passport_image, license_image) VALUES (?, ?, ?, ?, ?)",
@@ -27,5 +28,3 @@ router.post(
     );
   },
 );
-
-module.exports = router;
