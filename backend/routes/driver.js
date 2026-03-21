@@ -47,20 +47,28 @@ router.post(
 // GET ALL DRIVERS (WITH RELATION)
 // =========================
 router.get("/", (req, res) => {
-  const query = `
-  SELECT 
-    drivers.id,
-    users.name AS driver_name,
-    park.park_name AS park_name,
-    drivers.plate_number,
-    drivers.passport_image,
-    drivers.license_image,
-    drivers.approval_status,
-    drivers.created_at
-  FROM drivers
-  JOIN users ON drivers.user_id = users.id
-  JOIN park ON drivers.park_id = park.id
-`;
+  const { status } = req.query;
+
+  let query = `
+    SELECT 
+      drivers.id,
+      users.name AS driver_name,
+      park.park_name AS park_name,
+      drivers.plate_number,
+      drivers.passport_image,
+      drivers.license_image,
+      drivers.approval_status,
+      drivers.created_at
+    FROM drivers
+    JOIN users ON drivers.user_id = users.id
+    JOIN park ON drivers.park_id = park.id
+  `;
+
+  // Add filter if status is provided
+  if (status) {
+    query += ` WHERE drivers.approval_status = '${status}'`;
+  }
+
   db.query(query, (err, results) => {
     if (err) return res.status(500).json(err);
 
