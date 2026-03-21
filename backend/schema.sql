@@ -51,3 +51,10 @@ CREATE TABLE load_logs (
     completed_at TIMESTAMP,
     FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE CASCADE
 );
+CREATE TABLE park (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    park_name VARCHAR(100) NOT NULL,
+    location VARCHAR(150),
+    capacity INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
