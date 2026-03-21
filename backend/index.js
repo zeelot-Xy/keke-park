@@ -11,7 +11,7 @@ const authRoutes = require("./routes/auth");
 app.use("/api/auth", authRoutes);
 // Driver routing
 const driverRoutes = require("./routes/driver");
-app.use("/api/driver", driverRoutes);
+app.use("/api/drivers", driverRoutes);
 // Upload routing
 app.use("/uploads", express.static("uploads"));
 

@@ -13,7 +13,11 @@ router.post(
   (req, res) => {
     const { user_id, plate_number, park_id } = req.body;
 
-    console.log(req.files);
+    if (!req.files || !req.files.passport || !req.files.license) {
+      return res.status(400).json({
+        error: "Passport and license images are required",
+      });
+    }
 
     const passport = req.files["passport"][0].filename;
     const license = req.files["license"][0].filename;
@@ -29,9 +33,20 @@ router.post(
     );
   },
 );
-if (!req.files || !req.files.passport || !req.files.license) {
-  return res.status(400).json({
-    error: "Passport and license images are required",
+
+// GET all drivers
+router.get("/", (req, res) => {
+  db.query("SELECT * FROM drivers", (err, results) => {
+    if (err) return res.status(500).json(err);
+
+    // Map results to include full image URLs
+    const drivers = results.map((driver) => ({
+      ...driver,
+      passport_image: `http://localhost:5000/uploads/${driver.passport_image}`,
+      license_image: `http://localhost:5000/uploads/${driver.license_image}`,
+    }));
+
+    res.json(drivers);
   });
-}
+});
 module.exports = router;
