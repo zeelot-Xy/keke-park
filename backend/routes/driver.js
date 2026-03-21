@@ -49,4 +49,30 @@ router.get("/", (req, res) => {
     res.json(drivers);
   });
 });
+// GET single driver by ID
+router.get("/:id", (req, res) => {
+  const driverId = req.params.id;
+
+  console.log("Driver ID:", driverId);
+  console.log("GET /:id route hit");
+
+  db.query("SELECT * FROM drivers WHERE id = ?", [driverId], (err, results) => {
+    if (err) return res.status(500).json(err);
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    const driver = results[0];
+
+    // Map results to include full image URLs
+    const formattedDriver = {
+      ...driver,
+      passport_image: `http://localhost:5000/uploads/${driver.passport_image}`,
+      license_image: `http://localhost:5000/uploads/${driver.license_image}`,
+    };
+
+    res.json(formattedDriver);
+  });
+});
 module.exports = router;
