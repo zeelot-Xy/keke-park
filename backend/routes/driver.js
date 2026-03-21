@@ -73,7 +73,49 @@ router.get("/", (req, res) => {
     res.json(drivers);
   });
 });
+// =========================
+// DRIVER APPROVAL SYSTEM
+// =========================
+// APPROVE driver
+router.patch("/:id/approve", (req, res) => {
+  const driverId = parseInt(req.params.id);
 
+  const query = `
+    UPDATE drivers 
+    SET approval_status = 'approved'
+    WHERE id = ?
+  `;
+
+  db.query(query, [driverId], (err, result) => {
+    if (err) return res.status(500).json(err);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    res.json({ message: "Driver approved successfully" });
+  });
+});
+// REJECT driver
+router.patch("/:id/reject", (req, res) => {
+  const driverId = parseInt(req.params.id);
+
+  const query = `
+    UPDATE drivers 
+    SET approval_status = 'rejected'
+    WHERE id = ?
+  `;
+
+  db.query(query, [driverId], (err, result) => {
+    if (err) return res.status(500).json(err);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    res.json({ message: "Driver rejected successfully" });
+  });
+});
 // =========================
 // GET SINGLE DRIVER (WITH RELATION)
 // =========================
