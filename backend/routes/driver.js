@@ -47,7 +47,7 @@ router.post(
 // GET ALL DRIVERS (WITH RELATION)
 // =========================
 router.get("/", (req, res) => {
-  const { status } = req.query;
+  const { status, search } = req.query;
 
   let query = `
     SELECT 
@@ -64,12 +64,27 @@ router.get("/", (req, res) => {
     JOIN park ON drivers.park_id = park.id
   `;
 
-  // Add filter if status is provided
+  const conditions = [];
+  const params = [];
+
+  // status filter
   if (status) {
-    query += ` WHERE drivers.approval_status = '${status}'`;
+    conditions.push("drivers.approval_status = ?");
+    params.push(status);
   }
 
-  db.query(query, (err, results) => {
+  // search filter (name or plate_number)
+  if (search) {
+    conditions.push("(users.name LIKE ? OR drivers.plate_number LIKE ?)");
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  // combine conditions
+  if (conditions.length > 0) {
+    query += " WHERE " + conditions.join(" AND ");
+  }
+
+  db.query(query, params, (err, results) => {
     if (err) return res.status(500).json(err);
 
     const drivers = results.map((driver) => ({
