@@ -1,6 +1,8 @@
 const express = require("express");
 const upload = require("../middleware/upload");
 const db = require("../db");
+const auth = require("../middleware/auth");
+const admin = require("../middleware/admin");
 
 const router = express.Router();
 
@@ -110,7 +112,7 @@ router.get("/", (req, res) => {
 // DRIVER APPROVAL SYSTEM
 // =========================
 // APPROVE driver
-router.patch("/:id/approve", (req, res) => {
+router.patch("/:id/approve", auth, admin, (req, res) => {
   const driverId = parseInt(req.params.id);
 
   const query = `
@@ -130,7 +132,7 @@ router.patch("/:id/approve", (req, res) => {
   });
 });
 // REJECT driver
-router.patch("/:id/reject", (req, res) => {
+router.patch("/:id/reject", auth, admin, (req, res) => {
   const driverId = parseInt(req.params.id);
 
   const query = `
