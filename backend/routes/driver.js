@@ -47,7 +47,9 @@ router.post(
 // GET ALL DRIVERS (WITH RELATION)
 // =========================
 router.get("/", (req, res) => {
-  const { status, search } = req.query;
+  const { status, search, page = 1, limit = 5 } = req.query;
+
+  const offset = (page - 1) * limit;
 
   let query = `
     SELECT 
@@ -73,16 +75,20 @@ router.get("/", (req, res) => {
     params.push(status);
   }
 
-  // search filter (name or plate_number)
+  // search filter
   if (search) {
     conditions.push("(users.name LIKE ? OR drivers.plate_number LIKE ?)");
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  // combine conditions
+  // apply filters
   if (conditions.length > 0) {
     query += " WHERE " + conditions.join(" AND ");
   }
+
+  // add pagination
+  query += " LIMIT ? OFFSET ?";
+  params.push(parseInt(limit), parseInt(offset));
 
   db.query(query, params, (err, results) => {
     if (err) return res.status(500).json(err);
@@ -93,7 +99,11 @@ router.get("/", (req, res) => {
       license_image: `http://localhost:5000/uploads/${driver.license_image}`,
     }));
 
-    res.json(drivers);
+    res.json({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      results: drivers,
+    });
   });
 });
 // =========================
