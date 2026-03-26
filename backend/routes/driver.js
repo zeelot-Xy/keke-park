@@ -44,7 +44,39 @@ router.post(
     );
   },
 );
+// =========================
+// GET LOGGED-IN DRIVER PROFILE
+// =========================
+router.get("/me", auth, (req, res) => {
+  const userId = req.user.id;
 
+  const query = `
+    SELECT 
+      drivers.id,
+      users.name AS driver_name,
+      park.park_name AS park_name,
+      drivers.plate_number,
+      drivers.passport_image,
+      drivers.license_image,
+      drivers.approval_status
+    FROM drivers
+    JOIN users ON drivers.user_id = users.id
+    JOIN park ON drivers.park_id = park.id
+    WHERE drivers.user_id = ?
+  `;
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      return res.status(500).json(err);
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Driver profile not found" });
+    }
+
+    res.json(results[0]);
+  });
+});
 // =========================
 // GET ALL DRIVERS (WITH RELATION)
 // =========================
