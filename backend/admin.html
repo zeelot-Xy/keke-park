@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Admin Dashboard</title>
+  </head>
+  <body>
+    <h2>Current Loading</h2>
+    <div id="current"></div>
+
+    <button onclick="loadNext()">LOAD NEXT</button>
+
+    <h2>Waiting Queue</h2>
+    <ul id="waiting"></ul>
+
+    <script>
+      const token =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzc0NjQ5NDg1LCJleHAiOjE3NzQ3MzU4ODV9.io_b_REbBip7JJ7Ap6qtCClwnN1lDNbOw7MAQYAn6yg";
+
+      async function fetchCurrent() {
+        const res = await fetch(
+          "http://localhost:5000/api/queue/current-loading",
+          {
+            headers: { Authorization: "Bearer " + token },
+          },
+        );
+        const data = await res.json();
+
+        document.getElementById("current").innerHTML = data.message
+          ? data.message
+          : `
+              ${data.driver_name} - ${data.plate_number}
+              <button onclick="complete(${data.queue_id})">COMPLETE</button>
+            `;
+      }
+
+      async function fetchWaiting() {
+        const res = await fetch("http://localhost:5000/api/queue/waiting", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const data = await res.json();
+
+        const list = document.getElementById("waiting");
+        list.innerHTML = "";
+
+        data.forEach((d) => {
+          const li = document.createElement("li");
+          li.innerText = `${d.driver_name} - ${d.plate_number}`;
+          list.appendChild(li);
+        });
+      }
+
+      async function loadNext() {
+        const res = await fetch("http://localhost:5000/api/queue/load-next", {
+          method: "PATCH",
+          headers: { Authorization: "Bearer " + token },
+        });
+
+        const data = await res.json();
+        alert(data.message);
+
+        refresh();
+      }
+
+      async function complete(id) {
+        const res = await fetch(
+          `http://localhost:5000/api/queue/complete/${id}`,
+          {
+            method: "PATCH",
+            headers: { Authorization: "Bearer " + token },
+          },
+        );
+
+        const data = await res.json();
+        alert(data.message);
+
+        refresh();
+      }
+
+      function refresh() {
+        fetchCurrent();
+        fetchWaiting();
+      }
+
+      refresh();
+    </script>
+  </body>
+</html>

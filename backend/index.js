@@ -5,6 +5,8 @@ const PORT = 5000;
 
 // Middleware
 app.use(express.json());
+const cors = require("cors");
+app.use(cors());
 // Authentication routing
 const authRoutes = require("./routes/auth");
 app.use("/api/auth", authRoutes);

@@ -82,7 +82,7 @@ router.post("/join", auth, (req, res) => {
 router.get("/", (req, res) => {
   const query = `
     SELECT 
-      queue.id,
+      queue.id AS queue_id,
       users.name AS driver_name,
       drivers.plate_number,
       park.park_name,
@@ -98,6 +98,62 @@ router.get("/", (req, res) => {
 
   db.query(query, (err, results) => {
     if (err) return res.status(500).json(err);
+    res.json(results);
+  });
+});
+/* ===============================
+   GET CURRENT LOADING DRIVER
+================================ */
+router.get("/current-loading", auth, admin, (req, res) => {
+  const query = `
+    SELECT 
+      queue.id AS queue_id,
+      users.name AS driver_name,
+      drivers.plate_number,
+      park.park_name,
+      queue.joined_at
+    FROM queue
+    JOIN drivers ON queue.driver_id = drivers.id
+    JOIN users ON drivers.user_id = users.id
+    JOIN park ON drivers.park_id = park.id
+    WHERE queue.status = 'loading'
+    AND queue.queue_date = CURDATE()
+    LIMIT 1
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json(err);
+
+    if (results.length === 0) {
+      return res.json({ message: "No driver currently loading" });
+    }
+
+    res.json(results[0]);
+  });
+});
+/* ===============================
+   GET WAITING DRIVERS
+================================ */
+router.get("/waiting", auth, admin, (req, res) => {
+  const query = `
+    SELECT 
+      queue.id AS queue_id,
+      users.name AS driver_name,
+      drivers.plate_number,
+      park.park_name,
+      queue.joined_at
+    FROM queue
+    JOIN drivers ON queue.driver_id = drivers.id
+    JOIN users ON drivers.user_id = users.id
+    JOIN park ON drivers.park_id = park.id
+    WHERE queue.status = 'waiting'
+    AND queue.queue_date = CURDATE()
+    ORDER BY queue.joined_at ASC
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json(err);
+
     res.json(results);
   });
 });
