@@ -11,12 +11,14 @@ const router = express.Router();
 // =========================
 router.post(
   "/create",
+  auth,
   upload.fields([
     { name: "passport", maxCount: 1 },
     { name: "license", maxCount: 1 },
   ]),
   (req, res) => {
-    const { user_id, plate_number, park_id } = req.body;
+    const { plate_number, park_id } = req.body;
+    const user_id = req.user.id;
 
     // Validate files
     if (!req.files || !req.files.passport || !req.files.license) {

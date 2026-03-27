@@ -1,18 +1,21 @@
 const express = require("express");
 const db = require("../db");
 const auth = require("../middleware/auth");
+const admin = require("../middleware/admin");
 
 const router = express.Router();
 
-// DRIVER JOIN QUEUE
+/* ===============================
+   DRIVER JOIN QUEUE
+================================ */
 router.post("/join", auth, (req, res) => {
   const userId = req.user.id;
 
-  // find driver
+  // find approved driver
   const findDriver = `
-      SELECT id FROM drivers
-      WHERE user_id = ? AND approval_status = 'approved'
-    `;
+    SELECT id FROM drivers
+    WHERE user_id = ? AND approval_status = 'approved'
+  `;
 
   db.query(findDriver, [userId], (err, driverResult) => {
     if (err) return res.status(500).json(err);
@@ -25,11 +28,11 @@ router.post("/join", auth, (req, res) => {
 
     // check today's payment
     const checkPayment = `
-        SELECT * FROM payments
-        WHERE driver_id = ?
-        AND payment_date = CURDATE()
-        AND status = 'paid'
-      `;
+      SELECT id FROM payments
+      WHERE driver_id = ?
+      AND payment_date = CURDATE()
+      AND status = 'paid'
+    `;
 
     db.query(checkPayment, [driverId], (err, paymentResult) => {
       if (err) return res.status(500).json(err);
@@ -40,27 +43,28 @@ router.post("/join", auth, (req, res) => {
         });
       }
 
-      // check queue
+      // check if already waiting TODAY
       const checkQueue = `
-          SELECT * FROM queue
-          WHERE driver_id = ?
-          AND status = 'waiting'
-        `;
+        SELECT id FROM queue
+        WHERE driver_id = ?
+        AND status = 'waiting'
+        AND queue_date = CURDATE()
+      `;
 
       db.query(checkQueue, [driverId], (err, queueResult) => {
         if (err) return res.status(500).json(err);
 
         if (queueResult.length > 0) {
           return res.status(400).json({
-            message: "Driver already in queue",
+            message: "Driver already waiting in queue",
           });
         }
 
-        // join queue
+        // join today's queue
         const joinQueue = `
-            INSERT INTO queue (driver_id)
-            VALUES (?)
-          `;
+          INSERT INTO queue (driver_id, queue_date)
+          VALUES (?, CURDATE())
+        `;
 
         db.query(joinQueue, [driverId], (err) => {
           if (err) return res.status(500).json(err);
@@ -71,8 +75,11 @@ router.post("/join", auth, (req, res) => {
     });
   });
 });
-// VIEW QUEUE
-router.get("/", async (req, res) => {
+
+/* ===============================
+   VIEW TODAY'S QUEUE
+================================ */
+router.get("/", (req, res) => {
   const query = `
     SELECT 
       queue.id,
@@ -85,69 +92,92 @@ router.get("/", async (req, res) => {
     JOIN drivers ON queue.driver_id = drivers.id
     JOIN users ON drivers.user_id = users.id
     JOIN park ON drivers.park_id = park.id
+    WHERE queue.queue_date = CURDATE()
     ORDER BY queue.joined_at ASC
   `;
 
   db.query(query, (err, results) => {
     if (err) return res.status(500).json(err);
-
     res.json(results);
   });
 });
-// LOAD NEXT DRIVER
-router.patch("/load-next", (req, res) => {
-  const findDriverQuery = `
+
+/* ===============================
+   LOAD NEXT DRIVER (ADMIN)
+================================ */
+router.patch("/load-next", auth, admin, (req, res) => {
+  const checkLoadingQuery = `
     SELECT * FROM queue
-    WHERE status = 'waiting'
-    ORDER BY joined_at ASC
+    WHERE status = 'loading'
+    AND queue_date = CURDATE()
     LIMIT 1
   `;
 
-  db.query(findDriverQuery, (err, results) => {
+  db.query(checkLoadingQuery, (err, loadingResult) => {
     if (err) return res.status(500).json(err);
 
-    if (results.length === 0) {
-      return res.json({ message: "No drivers waiting in queue" });
+    if (loadingResult.length > 0) {
+      return res.status(400).json({
+        message: "Another driver is already loading",
+      });
     }
 
-    const driver = results[0];
-
-    const updateQuery = `
-      UPDATE queue
-      SET status = 'loading'
-      WHERE id = ?
+    const findDriverQuery = `
+      SELECT * FROM queue
+      WHERE status = 'waiting'
+      AND queue_date = CURDATE()
+      ORDER BY joined_at ASC
+      LIMIT 1
     `;
 
-    db.query(updateQuery, [driver.id], (err) => {
+    db.query(findDriverQuery, (err, results) => {
       if (err) return res.status(500).json(err);
 
-      res.json({
-        message: "Driver moved to loading",
-        queue_id: driver.id,
+      if (results.length === 0) {
+        return res.json({ message: "No drivers waiting today" });
+      }
+
+      const driver = results[0];
+
+      const updateQuery = `
+        UPDATE queue
+        SET status = 'loading'
+        WHERE id = ?
+      `;
+
+      db.query(updateQuery, [driver.id], (err) => {
+        if (err) return res.status(500).json(err);
+
+        res.json({
+          message: "Driver moved to loading",
+          queue_id: driver.id,
+        });
       });
     });
   });
 });
-// COMPLETE LOADING
-router.patch("/complete/:id", (req, res) => {
+
+/* ===============================
+   COMPLETE LOADING
+================================ */
+router.patch("/complete/:id", auth, admin, (req, res) => {
   const queueId = req.params.id;
 
-  // 1️⃣ get the queue record
   const findQuery = `
-    SELECT * FROM queue
-    WHERE id = ?
-  `;
+  SELECT * FROM queue
+  WHERE id = ?
+  AND queue_date = CURDATE()
+  AND status = 'loading'`;
 
   db.query(findQuery, [queueId], (err, results) => {
     if (err) return res.status(500).json(err);
 
     if (results.length === 0) {
-      return res.status(404).json({ message: "Queue record not found" });
+      return res.status(404).json({ message: "Loading record not found" });
     }
 
     const record = results[0];
 
-    // 2️⃣ update queue status
     const updateQuery = `
       UPDATE queue
       SET status = 'completed'
@@ -157,7 +187,6 @@ router.patch("/complete/:id", (req, res) => {
     db.query(updateQuery, [queueId], (err) => {
       if (err) return res.status(500).json(err);
 
-      // 3️⃣ log the load
       const logQuery = `
         INSERT INTO load_logs (driver_id, loaded_at, completed_at)
         VALUES (?, NOW(), NOW())
@@ -174,25 +203,32 @@ router.patch("/complete/:id", (req, res) => {
     });
   });
 });
-// DRIVER QUEUE POSITION
+
+/* ===============================
+   DRIVER QUEUE POSITION
+================================ */
 router.get("/position/:driver_id", (req, res) => {
   const driverId = req.params.driver_id;
 
   const query = `
-    SELECT COUNT(*) + 0 AS position
+    SELECT COUNT(*) AS position
     FROM queue
     WHERE status = 'waiting'
-    AND id <= (
-      SELECT id FROM queue
+    AND queue_date = CURDATE()
+    AND joined_at <= (
+      SELECT joined_at
+      FROM queue
       WHERE driver_id = ?
       AND status = 'waiting'
+      AND queue_date = CURDATE()
+      LIMIT 1
     )
   `;
 
   db.query(query, [driverId], (err, results) => {
     if (err) return res.status(500).json(err);
 
-    if (!results[0].position) {
+    if (results[0].position === 0 || results[0].position === null) {
       return res.status(404).json({ message: "Driver not in queue" });
     }
 
@@ -200,29 +236,6 @@ router.get("/position/:driver_id", (req, res) => {
       driver_id: driverId,
       position: results[0].position,
     });
-  });
-});
-// GET FULL QUEUE (ADMIN DASHBOARD)
-router.get("/", (req, res) => {
-  const query = `
-    SELECT 
-      queue.id,
-      users.name AS driver_name,
-      drivers.plate_number,
-      park.park_name,
-      queue.status,
-      queue.joined_at
-    FROM queue
-    JOIN drivers ON queue.driver_id = drivers.id
-    JOIN users ON drivers.user_id = users.id
-    JOIN park ON drivers.park_id = park.id
-    ORDER BY queue.joined_at ASC
-  `;
-
-  db.query(query, (err, results) => {
-    if (err) return res.status(500).json(err);
-
-    res.json(results);
   });
 });
 

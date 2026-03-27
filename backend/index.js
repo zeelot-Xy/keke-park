@@ -15,7 +15,10 @@ app.use("/api/drivers", driverRoutes);
 app.use("/uploads", express.static("uploads"));
 // Queue routing
 const queueRoutes = require("./routes/queue");
-app.use("/queue", queueRoutes);
+app.use("/api/queue", queueRoutes);
+// Payment routing
+const paymentRoutes = require("./routes/payment");
+app.use("/api/payment", paymentRoutes);
 // Test Route
 app.get("/", (req, res) => {
   res.send("Keke Park Backend Running");
@@ -30,6 +33,11 @@ app.get("/test-db", (req, res) => {
   });
 });
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Server Error" });
+});
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
