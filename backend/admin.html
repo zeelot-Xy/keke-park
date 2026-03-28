@@ -2,15 +2,78 @@
 <html>
   <head>
     <title>Admin Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f6f8;
+        padding: 20px;
+      }
+
+      h2 {
+        margin-bottom: 10px;
+      }
+
+      .card {
+        background: white;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .driver {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      button {
+        padding: 8px 12px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      .btn-primary {
+        background: #c60922;
+        color: white;
+      }
+
+      .btn-success {
+        background: green;
+        color: white;
+      }
+
+      .empty {
+        color: #888;
+      }
+
+      ul {
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 6px;
+      }
+    </style>
   </head>
+
   <body>
-    <h2>Current Loading</h2>
-    <div id="current"></div>
+    <!-- CURRENT LOADING -->
+    <div class="card">
+      <h2>Current Loading</h2>
+      <div id="current" class="empty">Loading...</div>
+    </div>
 
-    <button onclick="loadNext()">LOAD NEXT</button>
+    <!-- ACTION -->
+    <div class="card">
+      <button class="btn-primary" onclick="loadNext()">LOAD NEXT DRIVER</button>
+    </div>
 
-    <h2>Waiting Queue</h2>
-    <ul id="waiting"></ul>
+    <!-- WAITING QUEUE -->
+    <div class="card">
+      <h2>Waiting Queue</h2>
+      <ul id="waiting"></ul>
+    </div>
 
     <script>
       const token =
@@ -23,28 +86,43 @@
             headers: { Authorization: "Bearer " + token },
           },
         );
+
         const data = await res.json();
 
-        document.getElementById("current").innerHTML = data.message
-          ? data.message
-          : `
-              ${data.driver_name} - ${data.plate_number}
-              <button onclick="complete(${data.queue_id})">COMPLETE</button>
-            `;
+        const container = document.getElementById("current");
+
+        if (data.message) {
+          container.innerHTML = `<span class="empty">${data.message}</span>`;
+        } else {
+          container.innerHTML = `
+      <div class="driver">
+        ${data.driver_name} — ${data.plate_number}
+      </div>
+      <button class="btn-success" onclick="complete(${data.queue_id})">
+        COMPLETE
+      </button>
+    `;
+        }
       }
 
       async function fetchWaiting() {
         const res = await fetch("http://localhost:5000/api/queue/waiting", {
           headers: { Authorization: "Bearer " + token },
         });
-        const data = await res.json();
 
+        const data = await res.json();
         const list = document.getElementById("waiting");
+
         list.innerHTML = "";
 
-        data.forEach((d) => {
+        if (data.length === 0) {
+          list.innerHTML = `<span class="empty">No drivers waiting</span>`;
+          return;
+        }
+
+        data.forEach((d, index) => {
           const li = document.createElement("li");
-          li.innerText = `${d.driver_name} - ${d.plate_number}`;
+          li.innerText = `${index + 1}. ${d.driver_name} — ${d.plate_number}`;
           list.appendChild(li);
         });
       }
@@ -80,6 +158,9 @@
         fetchCurrent();
         fetchWaiting();
       }
+
+      // Auto refresh every 5 seconds
+      setInterval(refresh, 5000);
 
       refresh();
     </script>
